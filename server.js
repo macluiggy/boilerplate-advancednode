@@ -13,7 +13,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.route("/").get((req, res) => {
-  res.render(process.cwd() + "/views/pug"); //uitiliza render usango el motor (engine) establecido (app.set)
+  res.render(process.cwd() + "/views/pug", {
+    title: "Hello",
+    message: "Please login",
+  }); //uitiliza render usango el motor (engine) establecido (app.set)
 });
 
 const PORT = process.env.PORT || 3000;
