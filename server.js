@@ -6,6 +6,7 @@ const myDB = require("./connection");
 const fccTesting = require("./freeCodeCamp/fcctesting.js");
 const passport = require("passport");
 var session = require("express-session");
+const ObjectId = require("mongodb").ObjectID;
 
 const app = express();
 app.set("view engine", "pug"); //establece que motor de vista se va a usar, osea el que va a renderizar la pagina hmtl
@@ -34,6 +35,14 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session()); //
 
+passport.serializeUser((user, done) => {
+  done(null, user._id);
+});
+passport.deserializeUser((id, done) => {
+  // myDatabase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
+  done(null, null);
+  // })
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Listening on port " + PORT);
