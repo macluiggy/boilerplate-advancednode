@@ -8,6 +8,7 @@ const passport = require("passport");
 var session = require("express-session");
 const ObjectId = require("mongodb").ObjectID;
 const LocalStrategy = require("passport-local");
+// const bcrypt = require("bcrypt");
 
 const app = express();
 app.set("view engine", "pug"); //establece que motor de vista se va a usar, osea el que va a renderizar la pagina hmtl
@@ -17,6 +18,17 @@ app.use("/public", express.static(process.cwd() + "/public"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET, //secreto para encriptar la sesion
+    resave: true, // si se debe volver a guardar la sesion
+    saveUninitialized: true, // si se debe guardar la sesion sin inicializar
+    cookie: { secura: false }, // si se debe usar una cookie segura
+  })
+);
+
+app.use(passport.initialize()); // inicializa passport
+app.use(passport.session()); // inicializa session
 // app.route("/").get((req, res) => {
 //   res.render(process.cwd() + "/views/pug", {
 //     title: "Hello",
@@ -34,6 +46,7 @@ myDB(async (client) => {
       title: "Connected to Database",
       message: "Please login",
       showLogin: true,
+      showRegistration: true,
     });
   });
 
@@ -51,21 +64,46 @@ myDB(async (client) => {
   }
   app.route("/profile").get(ensureAuthenticated, (req, res) => {
     // si la autenticacion es exitosa redirige a /profile usando next() dentro de la funcion ensureAuthenticated, si no redirige a /
-    res.render(process.cwd() + "/views/pug/profile.pug"); // renderiza el template profile.pug
+    // res.render(process.cwd() + "/views/pug/index.pug", { showLogin: false });
+    res.render(process.cwd() + "/views/pug/profile.pug", {
+      username: req.user.username,
+    }); // renderiza el template profile.pug
+  });
+  app.route("/logout").get((req, res) => {
+    req.logout();
+    res.redirect("/");
+  });
+  app.route("/register").post(
+    (req, res, next) => {
+      const hash = bcrypt.hashSync(req.body.password, 12); // encripta la contraseña
+      myDataBase.findOne({ username: req.body.username }, function (err, user) {
+        if (err) {
+          next(err);
+        } else if (user) {
+          res.redirect("/");
+        } else {
+          myDataBase.insertOne(
+            { username: req.body.username, password: hash },
+            (err, doc) => {
+              if (err) {
+                res.redirect("/");
+              } else {
+                next(null, doc.ops[0]);
+              }
+            }
+          );
+        }
+      });
+    },
+    passport.authenticate("local", { failureRedirect: "/" }),
+    (req, res, next) => {
+      res.redirect("/profile");
+    }
+  );
+  app.use((req, res, next) => {
+    res.status(404).type("text").send("Not Found");
   });
   // Serialization and deserialization here...
-
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET, //secreto para encriptar la sesion
-      resave: true, // si se debe volver a guardar la sesion
-      saveUninitialized: true, // si se debe guardar la sesion sin inicializar
-      cookie: { secura: false }, // si se debe usar una cookie segura
-    })
-  );
-
-  app.use(passport.initialize()); // inicializa passport
-  app.use(passport.session()); // inicializa session
 
   passport.serializeUser((user, done) => {
     // serializa el usuario
@@ -93,7 +131,8 @@ myDB(async (client) => {
           // si no encuentra el usuario
           return done(null, false); // retorna null y false
         }
-        if (password !== user.password) {
+        if (!bcrypt.compareSync(password, user.password)) {
+          // si la contraseña no es correcta
           // si la contraseña no es igual a la contraseña del usuario
           return done(null, false); // retorna null y false
         }
