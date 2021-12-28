@@ -10,6 +10,7 @@ module.exports = function (app, myDataBase) {
       message: "Please login",
       showLogin: true,
       showRegistration: true,
+      showSocialAuth: true,
     });
   });
 
@@ -63,4 +64,17 @@ module.exports = function (app, myDataBase) {
       res.redirect("/profile");
     }
   );
+  app.route("/auth/github").get(passport.authenticate("github"));
+  // autoriza la redireccion a /auth/github/callback despues de que el usuario haya autenticado
+  app.route("/auth/github/callback").get(
+    passport.authenticate("github", { failureRedirect: "/" }, (req, res) => {
+      req.session.user_id = req.user.id;
+      res.redirect("/chat");
+    })
+  );
+  app.route("/chat").get(ensureAuthenticated, (req, res) => {
+    res.render(process.cwd() + "/views/pug/chat.pug", {
+      user: req.user,
+    });
+  });
 };
